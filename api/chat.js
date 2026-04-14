@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { message } = req.body;
+  const { messages } = req.body; // now receives full history
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
       model: "claude-haiku-4-5-20251001",
       max_tokens: 500,
       system: "You are a helpful college assistant. Answer questions about academics, exams, attendance, and college guidelines clearly and briefly.",
-      messages: [{ role: "user", content: message }]
+      messages: messages // full conversation history sent here
     })
   });
 
