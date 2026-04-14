@@ -1,16 +1,52 @@
+let isDark = false;
+
+function toggleTheme() {
+  isDark = !isDark;
+  document.body.classList.toggle("dark", isDark);
+  document.getElementById("themeBtn").innerText = isDark ? "☀️ Light" : "🌙 Dark";
+}
+
+function getTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+async function typeText(element, text, speed = 18) {
+  element.innerText = "";
+  for (let i = 0; i < text.length; i++) {
+    element.innerText += text[i];
+    await new Promise(r => setTimeout(r, speed));
+  }
+}
+
 async function sendMessage() {
   const input = document.getElementById("userInput");
   const chatBox = document.getElementById("chatBox");
   const userText = input.value.trim();
   if (!userText) return;
 
-  // Show user message
-  chatBox.innerHTML += `<div class="message user">${userText}</div>`;
+  // User message with timestamp
+  const userMsg = document.createElement("div");
+  userMsg.className = "message-wrapper user-wrapper";
+  userMsg.innerHTML = `
+    <div class="message user">${userText}</div>
+    <span class="timestamp">${getTime()}</span>
+  `;
+  chatBox.appendChild(userMsg);
   input.value = "";
   chatBox.scrollTop = chatBox.scrollHeight;
 
-  // Show loading
-  chatBox.innerHTML += `<div class="message bot" id="loading">Thinking...</div>`;
+  // Loading bubble
+  const botWrapper = document.createElement("div");
+  botWrapper.className = "message-wrapper bot-wrapper";
+  const botMsg = document.createElement("div");
+  botMsg.className = "message bot";
+  botMsg.innerText = "...";
+  const timeSpan = document.createElement("span");
+  timeSpan.className = "timestamp";
+  botWrapper.appendChild(botMsg);
+  botWrapper.appendChild(timeSpan);
+  chatBox.appendChild(botWrapper);
+  chatBox.scrollTop = chatBox.scrollHeight;
 
   try {
     const response = await fetch("/api/chat", {
@@ -18,17 +54,15 @@ async function sendMessage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: userText })
     });
-
     const data = await response.json();
-    document.getElementById("loading").remove();
-    chatBox.innerHTML += `<div class="message bot">${data.reply}</div>`;
-  } catch (err) {
-    document.getElementById("loading").innerText = "Error. Try again.";
+    await typeText(botMsg, data.reply);
+    timeSpan.innerText = getTime();
+  } catch {
+    botMsg.innerText = "Error. Please try again.";
   }
 
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Send on Enter key
 document.getElementById("userInput")
   .addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
