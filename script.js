@@ -180,12 +180,18 @@ async function sendMessage() {
       }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData?.error?.message || "API error");
+      // Show the exact error message from the server
+      const errMsg = typeof data.error === "string"
+        ? data.error
+        : data?.error?.message || `Server error ${response.status}`;
+      loadWrapper.innerHTML = `<div class="message bot error-msg">❌ ${errMsg}</div>`;
+      chatHistory.pop(); // remove the failed user message from history
+      return;
     }
 
-    const data = await response.json();
     const reply = data.reply;
 
     // Add assistant reply to history
@@ -195,7 +201,8 @@ async function sendMessage() {
     const botMsgEl = addBotMessage(reply);
     await typeText(botMsgEl, reply);
   } catch (err) {
-    loadWrapper.innerHTML = `<div class="message bot" style="color:#ef4444;">❌ Error: ${err.message}</div>`;
+    loadWrapper.innerHTML = `<div class="message bot error-msg">❌ Network error: ${err.message}</div>`;
+    chatHistory.pop();
   }
 
   chatBox.scrollTop = chatBox.scrollHeight;
