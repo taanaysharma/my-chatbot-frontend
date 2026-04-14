@@ -1,10 +1,11 @@
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  // ── Guard: make sure the key is actually present at runtime ──────────────
-  if (!process.env.OPENAI_API_KEY) {
+  // ── Guard: ensure API key is present ─────────────────────────────────────
+  if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({
-      error: "OPENAI_API_KEY is not set in environment variables. Please add it in your Vercel project settings and redeploy."
+      error:
+        "GEMINI_API_KEY is not set. Add it in your Vercel project settings under Environment Variables, then redeploy.",
     });
   }
 
@@ -23,48 +24,56 @@ export default async function handler(req, res) {
       `\n\nThe user has uploaded a PDF document. Use the following extracted content to answer their questions accurately:\n\n---\n${pdfContext}\n---`;
   }
 
-  // ── Build OpenAI messages array ──────────────────────────────────────────
-  const openAIMessages = messages.map((m) => ({
-    role: m.role,       // "user" or "assistant"
-    content: m.content,
+  // ── Build Gemini 'contents' array ────────────────────────────────────────
+  // Gemini uses { role: "user" | "model", parts: [{ text }] }
+  // "assistant" maps to "model" in Gemini's format
+  const contents = messages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
   }));
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // gemini-2.0-flash — free tier, fast, high quality
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    const response = await fetch(GEMINI_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-4o-mini",   // swap to "gpt-4o" for higher quality
-        max_tokens: 800,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...openAIMessages,
-        ],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }],
+        },
+        contents,
+        generationConfig: {
+          maxOutputTokens: 800,
+          temperature: 0.7,
+        },
       }),
     });
 
     const data = await response.json();
 
-    // ── Relay exact OpenAI error so the frontend can display it ─────────────
+    // ── Relay exact Gemini error ─────────────────────────────────────────
     if (!response.ok) {
       const message =
-        data?.error?.message ||
-        `OpenAI returned status ${response.status}`;
+        data?.error?.message || `Gemini API returned status ${response.status}`;
       return res.status(response.status).json({ error: message });
     }
 
-    const reply = data.choices?.[0]?.message?.content;
+    // ── Extract text from Gemini response ────────────────────────────────
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
     if (!reply) {
-      return res.status(500).json({ error: "Empty response received from OpenAI." });
+      const blockReason = data?.candidates?.[0]?.finishReason;
+      return res.status(500).json({
+        error: blockReason
+          ? `Response blocked by Gemini (reason: ${blockReason}). Try rephrasing your question.`
+          : "Empty response received from Gemini.",
+      });
     }
 
     res.status(200).json({ reply });
-
   } catch (err) {
-    // Network-level failure (DNS, timeout, etc.)
-    res.status(500).json({ error: `Network error reaching OpenAI: ${err.message}` });
+    res.status(500).json({ error: `Network error reaching Gemini: ${err.message}` });
   }
 }
