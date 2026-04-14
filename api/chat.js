@@ -2,10 +2,10 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   // ── Guard: ensure API key is present ─────────────────────────────────────
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return res.status(500).json({
       error:
-        "GEMINI_API_KEY is not set. Add it in your Vercel project settings under Environment Variables, then redeploy.",
+        "GROQ_API_KEY is not set. Add it in your Vercel project settings under Environment Variables, then redeploy.",
     });
   }
 
@@ -24,56 +24,53 @@ export default async function handler(req, res) {
       `\n\nThe user has uploaded a PDF document. Use the following extracted content to answer their questions accurately:\n\n---\n${pdfContext}\n---`;
   }
 
-  // ── Build Gemini 'contents' array ────────────────────────────────────────
-  // Gemini uses { role: "user" | "model", parts: [{ text }] }
-  // "assistant" maps to "model" in Gemini's format
-  const contents = messages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
+  // ── Build Groq (OpenAI-compatible) 'messages' array ──────────────────────
+  // Groq expects { role: "system" | "user" | "assistant", content: "..." }
+  const formattedMessages = [
+    { role: "system", content: systemPrompt },
+    ...messages.map((m) => ({
+      role: m.role === "assistant" || m.role === "model" ? "assistant" : "user",
+      content: m.content,
+    }))
+  ];
 
   try {
-    // gemini-2.0-flash — free tier, fast, high quality
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(GROQ_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        contents,
-        generationConfig: {
-          maxOutputTokens: 800,
-          temperature: 0.7,
-        },
+        model: "llama3-8b-8192", // You can also swap this to "mixtral-8x7b-32768" if you need larger context
+        messages: formattedMessages,
+        max_tokens: 800,
+        temperature: 0.7,
       }),
     });
 
     const data = await response.json();
 
-    // ── Relay exact Gemini error ─────────────────────────────────────────
+    // ── Relay exact Groq error ─────────────────────────────────────────
     if (!response.ok) {
       const message =
-        data?.error?.message || `Gemini API returned status ${response.status}`;
+        data?.error?.message || `Groq API returned status ${response.status}`;
       return res.status(response.status).json({ error: message });
     }
 
-    // ── Extract text from Gemini response ────────────────────────────────
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // ── Extract text from Groq response ────────────────────────────────
+    const reply = data?.choices?.[0]?.message?.content;
 
     if (!reply) {
-      const blockReason = data?.candidates?.[0]?.finishReason;
       return res.status(500).json({
-        error: blockReason
-          ? `Response blocked by Gemini (reason: ${blockReason}). Try rephrasing your question.`
-          : "Empty response received from Gemini.",
+        error: "Empty response received from Groq.",
       });
     }
 
     res.status(200).json({ reply });
   } catch (err) {
-    res.status(500).json({ error: `Network error reaching Gemini: ${err.message}` });
+    res.status(500).json({ error: `Network error reaching Groq: ${err.message}` });
   }
 }
