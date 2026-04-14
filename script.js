@@ -114,7 +114,7 @@ function addBotMessage(text) {
 
   const msg = document.createElement("div");
   msg.className = "message bot";
-
+  msg.style.whiteSpace = "pre-wrap";
   const actions = document.createElement("div");
   actions.className = "msg-actions";
 
@@ -156,7 +156,7 @@ async function sendMessage() {
   const userWrapper = document.createElement("div");
   userWrapper.className = "message-wrapper user-wrapper";
   userWrapper.innerHTML = `
-    <div class="message user">${userText}</div>
+    <div class="message user" style="white-space: pre-wrap;">${userText}</div>
     <span class="timestamp">${getTime()}</span>
   `;
   chatBox.appendChild(userWrapper);
