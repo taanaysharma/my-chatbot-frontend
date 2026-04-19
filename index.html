@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MANIT College Assistant</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="header-left">
+        🎓 MANIT Assistant
+        <span class="user-badge" id="userBadge"></span>
+      </div>
+      <div class="header-btns">
+        <button id="newChatBtn"  onclick="newChat()"         title="Start a new chat">🗑️ New</button>
+        <button id="exportBtn"   onclick="exportChat()"      title="Export chat">💾 Export</button>
+        <button id="themeBtn"    onclick="toggleTheme()">🌙 Dark</button>
+        <button id="logoutBtn"   onclick="handleLogout()"    title="Logout">🚪 Logout</button>
+      </div>
+    </div>
+
+    <div class="pdf-bar" id="pdfBar">
+      <label for="pdfInput" class="pdf-label" title="Upload a PDF to ask questions from it">📄 Upload PDF</label>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none"/>
+      <span id="pdfStatus" class="pdf-status">No PDF loaded</span>
+      <button id="pdfClearBtn" class="pdf-clear-btn" onclick="clearPDF()" style="display:none">✕ Clear</button>
+    </div>
+
+    <div class="chat-box" id="chatBox"></div>
+
+    <div class="chips-bar" id="chipsBar">
+      <button class="chip" onclick="useChip('When are the exams?')">📅 Exam Schedule</button>
+      <button class="chip" onclick="useChip('What is the attendance rule?')">📋 Attendance</button>
+      <button class="chip" onclick="useChip('Tell me about placements at MANIT')">💼 Placements</button>
+      <button class="chip" onclick="useChip('What clubs and societies are there?')">🎭 Clubs</button>
+    </div>
+
+    <div class="input-area">
+      <input type="text" id="userInput" placeholder="Ask about MANIT..."/>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
