@@ -26,7 +26,17 @@ let currentUser = null;
 })();
 
 async function handleLogout() {
-  await window._sb.auth.signOut();
+  try {
+    await window._sb.auth.signOut();
+  } catch (e) {
+    console.error("Logout error:", e);
+  }
+  // Force-clear any lingering session from localStorage
+  localStorage.removeItem("supabase.auth.token");
+  // Supabase v2 stores session under this key pattern
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith("sb-")) localStorage.removeItem(k);
+  });
   window.location.href = "login.html";
 }
 
@@ -129,7 +139,12 @@ async function loadHistoryFromDB() {
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: true });
 
-  if (error) { addSystemNote("⚠️ Could not load history: " + error.message); return; }
+  if (error) {
+    console.error("DB error:", error);
+    addSystemNote("⚠️ Could not load history: " + error.message + " (Code: " + error.code + ")");
+    addSystemNote("👋 Starting fresh. Ask me anything!");
+    return;
+  }
   if (!data || data.length === 0) {
     addSystemNote("👋 Welcome to MANIT Assistant! Ask me anything.");
     return;
