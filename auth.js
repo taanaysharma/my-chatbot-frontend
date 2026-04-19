@@ -1,5 +1,8 @@
-// ── Load Supabase config ──────────────────────────────────────────────────────
-// supabase-config.js must be loaded before this file (see login.html)
+// ── Auth guard: if already logged in → go to chat ────────────────────────────
+(async () => {
+  const { data: { session } } = await window._sb.auth.getSession();
+  if (session) window.location.href = "index.html";
+})();
 
 // ── Tab switcher ──────────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -17,43 +20,29 @@ function clearErrors() {
     if (el) { el.style.display = "none"; el.textContent = ""; }
   });
 }
-
 function showError(id, msg) {
   const el = document.getElementById(id);
-  el.textContent = msg;
-  el.style.display = "block";
+  el.textContent = msg; el.style.display = "block";
 }
-
 function showSuccess(id, msg) {
   const el = document.getElementById(id);
-  el.textContent = msg;
-  el.style.display = "block";
+  el.textContent = msg; el.style.display = "block";
 }
-
 function setLoading(btnId, loading, label) {
   const btn = document.getElementById(btnId);
   btn.disabled = loading;
   btn.textContent = loading ? "Please wait…" : label;
 }
 
-// ── Check if already logged in → redirect to chat ────────────────────────────
-(async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) window.location.href = "index.html";
-})();
-
 // ── Login ─────────────────────────────────────────────────────────────────────
 async function handleLogin() {
   clearErrors();
   const email    = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
-
   if (!email || !password) return showError("loginError", "Please fill in all fields.");
-
   setLoading("loginBtn", true, "Login");
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await window._sb.auth.signInWithPassword({ email, password });
   setLoading("loginBtn", false, "Login");
-
   if (error) return showError("loginError", error.message);
   window.location.href = "index.html";
 }
@@ -64,17 +53,14 @@ async function handleSignup() {
   const name     = document.getElementById("signupName").value.trim();
   const email    = document.getElementById("signupEmail").value.trim();
   const password = document.getElementById("signupPassword").value;
-
   if (!name || !email || !password) return showError("signupError", "Please fill in all fields.");
-  if (password.length < 6)          return showError("signupError", "Password must be at least 6 characters.");
-
+  if (password.length < 6) return showError("signupError", "Password must be at least 6 characters.");
   setLoading("signupBtn", true, "Create Account");
-  const { error } = await supabase.auth.signUp({
+  const { error } = await window._sb.auth.signUp({
     email, password,
     options: { data: { full_name: name } }
   });
   setLoading("signupBtn", false, "Create Account");
-
   if (error) return showError("signupError", error.message);
   showSuccess("signupSuccess", "✅ Account created! Check your email to confirm, then log in.");
 }
@@ -83,13 +69,14 @@ async function handleSignup() {
 async function handleForgotPassword() {
   const email = document.getElementById("loginEmail").value.trim();
   if (!email) return showError("loginError", "Enter your email above first.");
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await window._sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + "/login.html"
   });
   if (error) return showError("loginError", error.message);
-  showError("loginError", "✅ Password reset email sent!");
-  document.getElementById("loginError").style.color = "#22c55e";
+  const el = document.getElementById("loginError");
+  el.textContent = "✅ Password reset email sent!";
+  el.style.display = "block";
+  el.style.color = "#22c55e";
 }
 
 // ── Enter key support ─────────────────────────────────────────────────────────
