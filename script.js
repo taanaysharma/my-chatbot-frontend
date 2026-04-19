@@ -1,5 +1,6 @@
 // ════════════════════════════════════════════════════════════════════
 //  MANIT Chatbot — script.js  (Supabase auth + persistent history)
+//  Uses window._sb (set in supabase-config.js) to avoid name collision
 // ════════════════════════════════════════════════════════════════════
 
 marked.setOptions({ breaks: true, gfm: true });
@@ -8,7 +9,7 @@ marked.setOptions({ breaks: true, gfm: true });
 let currentUser = null;
 
 (async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await window._sb.auth.getSession();
   if (!session) { window.location.href = "login.html"; return; }
   currentUser = session.user;
 
@@ -25,7 +26,7 @@ let currentUser = null;
 })();
 
 async function handleLogout() {
-  await supabase.auth.signOut();
+  await window._sb.auth.signOut();
   window.location.href = "login.html";
 }
 
@@ -62,7 +63,9 @@ function copyText(btn, text) {
   });
 }
 function speakText(btn, text) {
-  if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); btn.textContent = "🔊 Speak"; return; }
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel(); btn.textContent = "🔊 Speak"; return;
+  }
   const u = new SpeechSynthesisUtterance(text);
   u.onend = () => btn.textContent = "🔊 Speak";
   btn.textContent = "⏹ Stop";
@@ -90,8 +93,7 @@ document.getElementById("pdfInput").addEventListener("change", async (e) => {
     const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
     let fullText = "";
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
+      const content = await (await pdf.getPage(i)).getTextContent();
       fullText += content.items.map(item => item.str).join(" ") + "\n";
     }
     pdfContext = fullText.slice(0, 12000);
@@ -101,6 +103,7 @@ document.getElementById("pdfInput").addEventListener("change", async (e) => {
     addSystemNote(`📄 PDF "${file.name}" loaded.`);
   } catch { statusEl.textContent = "❌ Failed to read PDF"; statusEl.style.color = "#ef4444"; }
 });
+
 function clearPDF() {
   pdfContext = "";
   document.getElementById("pdfInput").value = "";
@@ -120,14 +123,17 @@ function addSystemNote(text) {
 let chatHistory = [];
 
 async function loadHistoryFromDB() {
-  const { data, error } = await supabase
+  const { data, error } = await window._sb
     .from("chat_messages")
     .select("role, content, created_at")
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: true });
 
   if (error) { addSystemNote("⚠️ Could not load history: " + error.message); return; }
-  if (!data || data.length === 0) { addSystemNote("👋 Welcome to MANIT Assistant! Ask me anything."); return; }
+  if (!data || data.length === 0) {
+    addSystemNote("👋 Welcome to MANIT Assistant! Ask me anything.");
+    return;
+  }
 
   chatHistory = data.map(r => ({
     role: r.role, content: r.content,
@@ -139,12 +145,15 @@ async function loadHistoryFromDB() {
 }
 
 async function saveMessageToDB(role, content) {
-  const { error } = await supabase.from("chat_messages").insert({ user_id: currentUser.id, role, content });
+  const { error } = await window._sb.from("chat_messages").insert({
+    user_id: currentUser.id, role, content
+  });
   if (error) console.error("Save error:", error.message);
 }
 
 async function clearHistoryFromDB() {
-  const { error } = await supabase.from("chat_messages").delete().eq("user_id", currentUser.id);
+  const { error } = await window._sb.from("chat_messages")
+    .delete().eq("user_id", currentUser.id);
   if (error) console.error("Clear error:", error.message);
 }
 
@@ -152,8 +161,8 @@ async function clearHistoryFromDB() {
 function buildActions(text) {
   const actions = document.createElement("div");
   actions.className = "msg-actions";
-  const copyBtn = document.createElement("button"); copyBtn.className = "action-btn";
-  copyBtn.textContent = "📋 Copy"; copyBtn.onclick = () => copyText(copyBtn, text);
+  const copyBtn  = document.createElement("button"); copyBtn.className  = "action-btn";
+  copyBtn.textContent  = "📋 Copy";  copyBtn.onclick  = () => copyText(copyBtn, text);
   const speakBtn = document.createElement("button"); speakBtn.className = "action-btn";
   speakBtn.textContent = "🔊 Speak"; speakBtn.onclick = () => speakText(speakBtn, text);
   actions.appendChild(copyBtn); actions.appendChild(speakBtn);
@@ -166,7 +175,8 @@ function restoreChatUI(history) {
   for (const msg of history) {
     if (msg.role === "user") {
       const w = document.createElement("div"); w.className = "message-wrapper user-wrapper";
-      w.innerHTML = `<div class="message user">${escapeHtml(msg.content)}</div><span class="timestamp">${msg.time||""}</span>`;
+      w.innerHTML = `<div class="message user">${escapeHtml(msg.content)}</div>
+                     <span class="timestamp">${msg.time||""}</span>`;
       chatBox.appendChild(w);
     } else if (msg.role === "assistant") {
       const w = document.createElement("div"); w.className = "message-wrapper bot-wrapper";
@@ -184,7 +194,7 @@ function addBotMessage(text) {
   const chatBox = document.getElementById("chatBox");
   const w = document.createElement("div"); w.className = "message-wrapper bot-wrapper";
   const msg = document.createElement("div"); msg.className = "message bot markdown-body";
-  const ts = document.createElement("span"); ts.className = "timestamp"; ts.textContent = getTime();
+  const ts  = document.createElement("span"); ts.className = "timestamp"; ts.textContent = getTime();
   w.appendChild(msg); w.appendChild(buildActions(text)); w.appendChild(ts);
   chatBox.appendChild(w);
   return msg;
@@ -218,7 +228,7 @@ function exportChat() {
 
 // ── Send ──────────────────────────────────────────────────────────────────────
 async function sendMessage() {
-  const input = document.getElementById("userInput");
+  const input   = document.getElementById("userInput");
   const chatBox = document.getElementById("chatBox");
   const userText = input.value.trim();
   if (!userText) return;
@@ -229,14 +239,16 @@ async function sendMessage() {
 
   const userWrapper = document.createElement("div");
   userWrapper.className = "message-wrapper user-wrapper";
-  userWrapper.innerHTML = `<div class="message user">${escapeHtml(userText)}</div><span class="timestamp">${time}</span>`;
+  userWrapper.innerHTML = `<div class="message user">${escapeHtml(userText)}</div>
+                            <span class="timestamp">${time}</span>`;
   chatBox.appendChild(userWrapper);
   input.value = "";
   chatBox.scrollTop = chatBox.scrollHeight;
 
   const loadWrapper = document.createElement("div");
   loadWrapper.className = "message-wrapper bot-wrapper";
-  loadWrapper.innerHTML = `<div class="message bot"><span class="dot-typing"><span></span><span></span><span></span></span></div>`;
+  loadWrapper.innerHTML = `<div class="message bot">
+    <span class="dot-typing"><span></span><span></span><span></span></span></div>`;
   chatBox.appendChild(loadWrapper);
   chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -257,10 +269,10 @@ async function sendMessage() {
       chatHistory.pop(); return;
     }
 
-    const reply = data.reply;
+    const reply     = data.reply;
     const replyTime = getTime();
 
-    // Persist both messages to Supabase
+    // Save both to Supabase
     await saveMessageToDB("user", userText);
     await saveMessageToDB("assistant", reply);
 
