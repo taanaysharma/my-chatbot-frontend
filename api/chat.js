@@ -70,7 +70,7 @@ CAI(AI/ML)|CEWM(WaterMgmt)|Space-TIC(ISRO collab)|EnergyCentre(RenewableEnergy)|
 RANKINGS & ACCREDITATION
 NIRF2024:Engg72,Arch17,Overall151-200|THE2026:Top100Global(InterdisciplinaryScience)|TheWeek2023:33rd|IIRF2023Arch:15th
 Accred:UGC,AICTE,NBA,ARIIA
-
+HOD CSE Dr. R.K. Pateriya
 NOTABLE ALUMNI
 AjitJogi(1stCMChhattisgarh)|SatishKumarSharma(CMD,NPCIL)|NaveenPolishetty(actor)|PCaSharma(MPCabinetMinister)
 
