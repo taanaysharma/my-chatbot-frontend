@@ -71,6 +71,10 @@ RANKINGS & ACCREDITATION
 NIRF2024:Engg72,Arch17,Overall151-200|THE2026:Top100Global(InterdisciplinaryScience)|TheWeek2023:33rd|IIRF2023Arch:15th
 Accred:UGC,AICTE,NBA,ARIIA
 HOD CSE Dr. R.K. Pateriya
+Hostels Boys H1,H2,H3,H4,H5,H6,H8A,H8B,H9,H10A,H10B,H10C,H10D,H11
+Hostels Girls H7,H12
+CSE Block A and Block B (Centre for AI) 
+Sem 4 subjects : CSO, DCN, ADA, FOE, TOC, SE
 NOTABLE ALUMNI
 AjitJogi(1stCMChhattisgarh)|SatishKumarSharma(CMD,NPCIL)|NaveenPolishetty(actor)|PCaSharma(MPCabinetMinister)
 
